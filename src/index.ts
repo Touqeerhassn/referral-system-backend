@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 
-// ⚠️ Load env vars FIRST — before any module that reads process.env
+// Load env vars FIRST — before any module that reads process.env
 dotenv.config();
 
 import { db } from './db';

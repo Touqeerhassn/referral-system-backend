@@ -5,8 +5,8 @@ import { registerBusinessSchema } from '../validators/business.validator';
 
 const router = Router();
 
-// POST /api/businesses — Register a new business
-router.post('/', validate(registerBusinessSchema), registerBusiness);
+// POST /api/businesses/register — Register a new business
+router.post('/register', validate(registerBusinessSchema), registerBusiness);
 
 export default router;
 
