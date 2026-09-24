@@ -36,27 +36,40 @@ export const createCampaign = asyncHandler(async (req: Request, res: Response) =
         return;
     }
 
-    const [newCampaign] = await db
-        .insert(campaigns)
-        .values({
-            id: `cmp_${nanoid(10)}`,
-            businessId,
-            name,
-            slug,
-            startDateTime: new Date(startDateTime),
-            endDateTime: new Date(endDateTime),
-            tier1Pct,
-            tier2Pct,
-            tier3Pct,
-            maxDiscountCapPct,
-        })
-        .returning();
+    let newCampaign;
+    try {
+        [newCampaign] = await db
+            .insert(campaigns)
+            .values({
+                id: `cmp_${nanoid(10)}`,
+                businessId,
+                name,
+                slug,
+                startDateTime: new Date(startDateTime),
+                endDateTime: new Date(endDateTime),
+                tier1Pct,
+                tier2Pct,
+                tier3Pct,
+                maxDiscountCapPct,
+            })
+            .returning();
+    } catch (err: any) {
+        // PostgreSQL unique violation on slug column
+        if (err.code === '23505') {
+            res.status(409).json({
+                success: false,
+                error: `A campaign with slug "${slug}" already exists. Please choose a different slug.`,
+            });
+            return;
+        }
+        throw err; // re-throw anything else to global error handler
+    }
 
     res.status(201).json({
         success: true,
         message: 'Campaign created successfully',
         campaign: newCampaign,
-        publicLink: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/c/${newCampaign.slug}`,
+        publicLink: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/c/${newCampaign!.slug}`,
     });
 });
 
