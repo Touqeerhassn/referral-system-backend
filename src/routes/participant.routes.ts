@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { joinCampaign } from '../controllers/participant.controller';
+import { joinCampaign, lookupParticipant } from '../controllers/participant.controller';
 import { confirmOrder, getParticipantSummary } from '../controllers/order.controller';
 import { validate } from '../middleware/validate';
 import { joinCampaignSchema } from '../validators/participant.validator';
@@ -17,3 +17,6 @@ router.patch('/:id/confirm', validate(confirmOrderParamsSchema, 'params'), confi
 router.get('/:id/summary', validate(confirmOrderParamsSchema, 'params'), getParticipantSummary);
 
 export default router;
+
+// POST /api/participants/lookup - Lookup existing participant by phone, code, or ID
+router.post('/lookup', lookupParticipant);

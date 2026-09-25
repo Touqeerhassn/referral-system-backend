@@ -80,6 +80,7 @@ export const joinCampaign = asyncHandler(async (req: Request, res: Response) => 
             success: false,
             error: 'This phone number has already joined this campaign',
             field: 'phone',
+            participantId: existingParticipant.id,
         });
         return;
     }
@@ -130,5 +131,60 @@ export const joinCampaign = asyncHandler(async (req: Request, res: Response) => 
         message: 'Participant registered successfully',
         participant: newParticipant,
         shareableLink: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/c/${campaign.slug}?ref=${newParticipant.referralCode}`,
+    });
+});
+
+
+/**
+ * POST /api/participants/lookup
+ * Look up an existing participant by phone, referralCode, or participantId.
+ */
+export const lookupParticipant = asyncHandler(async (req: Request, res: Response) => {
+    const { campaignId, phone, referralCode, participantId } = req.body;
+
+    let queryCondition;
+
+    if (participantId) {
+        queryCondition = eq(participants.id, participantId);
+    } else if (referralCode) {
+        queryCondition = eq(participants.referralCode, referralCode.trim().toUpperCase());
+    } else if (phone) {
+        const cleanPhone = phone.trim();
+        if (campaignId) {
+            queryCondition = and(
+                eq(participants.campaignId, campaignId),
+                eq(participants.phone, cleanPhone)
+            );
+        } else {
+            queryCondition = eq(participants.phone, cleanPhone);
+        }
+    } else {
+        res.status(400).json({ success: false, error: 'Please provide phone, referral code, or participant ID' });
+        return;
+    }
+
+    const [participant] = await db
+        .select()
+        .from(participants)
+        .where(queryCondition)
+        .limit(1);
+
+    if (!participant) {
+        res.status(404).json({ success: false, error: 'No participant found with these details' });
+        return;
+    }
+
+    const [campaign] = await db
+        .select({ slug: campaigns.slug })
+        .from(campaigns)
+        .where(eq(campaigns.id, participant.campaignId))
+        .limit(1);
+
+    const shareableLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/c/${campaign?.slug || 'campaign'}?ref=${participant.referralCode}`;
+
+    res.json({
+        success: true,
+        participant,
+        shareableLink,
     });
 });
