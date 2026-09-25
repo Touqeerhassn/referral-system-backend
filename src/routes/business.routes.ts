@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { registerBusiness, getBusinessCampaigns } from '../controllers/business.controller';
+import { registerBusiness, getBusinessCampaigns, getBusinessParticipants } from '../controllers/business.controller';
 import { validate } from '../middleware/validate';
 import { registerBusinessSchema, businessParamsSchema } from '../validators/business.validator';
 
@@ -14,3 +14,6 @@ router.get('/:businessId/campaigns', validate(businessParamsSchema, 'params'), g
 export default router;
 
 
+
+// GET /api/businesses/:businessId/participants - Get all participants across business campaigns
+router.get('/:businessId/participants', validate(businessParamsSchema, 'params'), getBusinessParticipants);

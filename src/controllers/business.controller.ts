@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { nanoid } from 'nanoid';
 import { eq, desc } from 'drizzle-orm';
 import { db } from '../db';
-import { businesses, campaigns } from '../db/schema';
+import { businesses, campaigns, participants } from '../db/schema';
 import { asyncHandler } from '../middleware/errorHandler';
 
 /**
@@ -71,3 +71,49 @@ export const getBusinessCampaigns = asyncHandler(async (req: Request<{ businessI
 });
 
 
+
+
+/**
+ * GET /api/businesses/:businessId/participants
+ * Fetch all participants registered across all campaigns of a business.
+ */
+export const getBusinessParticipants = asyncHandler(async (req: Request<{ businessId: string }>, res: Response) => {
+    const { businessId } = req.params;
+
+    const [business] = await db
+        .select()
+        .from(businesses)
+        .where(eq(businesses.id, businessId))
+        .limit(1);
+
+    if (!business) {
+        res.status(404).json({
+            success: false,
+            error: `Business with id "${businessId}" not found`,
+        });
+        return;
+    }
+
+    const participantList = await db
+        .select({
+            id: participants.id,
+            campaignId: participants.campaignId,
+            campaignName: campaigns.name,
+            campaignSlug: campaigns.slug,
+            name: participants.name,
+            phone: participants.phone,
+            referralCode: participants.referralCode,
+            referredById: participants.referredById,
+            orderStatus: participants.orderStatus,
+            createdAt: participants.createdAt,
+        })
+        .from(participants)
+        .innerJoin(campaigns, eq(participants.campaignId, campaigns.id))
+        .where(eq(campaigns.businessId, businessId))
+        .orderBy(desc(participants.createdAt));
+
+    res.json({
+        success: true,
+        participants: participantList,
+    });
+});
