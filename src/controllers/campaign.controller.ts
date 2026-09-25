@@ -36,6 +36,22 @@ export const createCampaign = asyncHandler(async (req: Request, res: Response) =
         return;
     }
 
+    // ── Pre-flight Check: Does slug already exist? ───────────────────────────
+    const [existingCampaign] = await db
+        .select({ id: campaigns.id })
+        .from(campaigns)
+        .where(eq(campaigns.slug, slug))
+        .limit(1);
+
+    if (existingCampaign) {
+        res.status(409).json({
+            success: false,
+            error: `A campaign with slug "${slug}" already exists. Please choose a different slug.`,
+            field: 'slug',
+        });
+        return;
+    }
+
     let newCampaign;
     try {
         [newCampaign] = await db
@@ -54,16 +70,26 @@ export const createCampaign = asyncHandler(async (req: Request, res: Response) =
             })
             .returning();
     } catch (err: any) {
-        // PostgreSQL unique violation on slug column
-        if (err.code === '23505') {
+        // PostgreSQL unique violation on slug (handling direct code, cause, or wrapped message)
+        const isDuplicate =
+            err?.code === '23505' ||
+            err?.cause?.code === '23505' ||
+            err?.message?.includes('23505') ||
+            err?.cause?.message?.includes('23505') ||
+            err?.message?.includes('unique constraint') ||
+            err?.cause?.message?.includes('unique constraint');
+
+        if (isDuplicate) {
             res.status(409).json({
                 success: false,
                 error: `A campaign with slug "${slug}" already exists. Please choose a different slug.`,
+                field: 'slug',
             });
             return;
         }
         throw err; // re-throw anything else to global error handler
     }
+
 
     res.status(201).json({
         success: true,

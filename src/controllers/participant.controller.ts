@@ -63,11 +63,32 @@ export const joinCampaign = asyncHandler(async (req: Request, res: Response) => 
         parentId = referrer.id;
     }
 
-    // 4. Generate a unique personal referral code: e.g. ALI-X7K2P
+    // 4. Check for duplicate phone join
+    const [existingParticipant] = await db
+        .select({ id: participants.id })
+        .from(participants)
+        .where(
+            and(
+                eq(participants.campaignId, campaignId),
+                eq(participants.phone, phone)
+            )
+        )
+        .limit(1);
+
+    if (existingParticipant) {
+        res.status(409).json({
+            success: false,
+            error: 'This phone number has already joined this campaign',
+            field: 'phone',
+        });
+        return;
+    }
+
+    // 5. Generate a unique personal referral code: e.g. ALI-X7K2P
     const prefix = name.trim().slice(0, 3).toUpperCase().replace(/[^A-Z]/g, 'X').padEnd(3, 'X');
     const personalCode = `${prefix}-${nanoid(5).toUpperCase()}`;
 
-    // 5. Insert participant (DB unique index on campaignId+phone handles duplicate joins)
+    // 6. Insert participant
     let newParticipant;
     try {
         [newParticipant] = await db
@@ -84,15 +105,25 @@ export const joinCampaign = asyncHandler(async (req: Request, res: Response) => 
             .returning();
     } catch (err: any) {
         // PostgreSQL unique violation
-        if (err.code === '23505') {
+        const isDuplicate =
+            err?.code === '23505' ||
+            err?.cause?.code === '23505' ||
+            err?.message?.includes('23505') ||
+            err?.cause?.message?.includes('23505') ||
+            err?.message?.includes('unique constraint') ||
+            err?.cause?.message?.includes('unique constraint');
+
+        if (isDuplicate) {
             res.status(409).json({
                 success: false,
                 error: 'This phone number has already joined this campaign',
+                field: 'phone',
             });
             return;
         }
         throw err; // re-throw anything else to global error handler
     }
+
 
     res.status(201).json({
         success: true,
