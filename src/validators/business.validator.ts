@@ -15,3 +15,11 @@ export const registerBusinessSchema = Joi.object({
             'any.only': 'subsStatus must be either Guest or Subscribed',
         }),
 });
+
+export const businessParamsSchema = Joi.object({
+    businessId: Joi.string().trim().required().messages({
+        'string.empty': 'Business ID cannot be empty',
+        'any.required': 'Business ID is required',
+    }),
+});
+
