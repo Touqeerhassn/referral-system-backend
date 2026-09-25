@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createCampaign, getCampaignLeaderboard } from '../controllers/campaign.controller';
+import { createCampaign, getCampaignLeaderboard, getCampaignBySlug } from '../controllers/campaign.controller';
 import { validate } from '../middleware/validate';
 import { createCampaignSchema } from '../validators/campaign.validator';
 import { campaignParamsSchema } from '../validators/order.validator';
@@ -13,3 +13,7 @@ router.post('/', validate(createCampaignSchema), createCampaign);
 router.get('/:campaignId/leaderboard', validate(campaignParamsSchema, 'params'), getCampaignLeaderboard);
 
 export default router;
+
+// GET /api/campaigns/by-slug/:slug & /slug/:slug - Public campaign details by slug
+router.get('/by-slug/:slug', getCampaignBySlug);
+router.get('/slug/:slug', getCampaignBySlug);

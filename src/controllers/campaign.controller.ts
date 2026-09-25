@@ -146,3 +146,28 @@ export const getCampaignLeaderboard = asyncHandler(async (req: Request<{ campaig
         leaderboard,
     });
 });
+
+
+/**
+ * GET /api/campaigns/by-slug/:slug
+ * Public endpoint: Returns campaign details by slug for public landing page
+ */
+export const getCampaignBySlug = asyncHandler(async (req: Request<{ slug: string }>, res: Response) => {
+    const { slug } = req.params;
+
+    const [campaign] = await db
+        .select()
+        .from(campaigns)
+        .where(eq(campaigns.slug, slug))
+        .limit(1);
+
+    if (!campaign) {
+        res.status(404).json({ success: false, error: `Campaign with slug "${slug}" not found` });
+        return;
+    }
+
+    res.json({
+        success: true,
+        campaign,
+    });
+});
