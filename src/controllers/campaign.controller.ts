@@ -171,3 +171,28 @@ export const getCampaignBySlug = asyncHandler(async (req: Request<{ slug: string
         campaign,
     });
 });
+
+
+/**
+ * GET /api/campaigns/:campaignId
+ * Fetch single campaign details by ID.
+ */
+export const getCampaignById = asyncHandler(async (req: Request<{ campaignId: string }>, res: Response) => {
+    const { campaignId } = req.params;
+
+    const [campaign] = await db
+        .select()
+        .from(campaigns)
+        .where(eq(campaigns.id, campaignId))
+        .limit(1);
+
+    if (!campaign) {
+        res.status(404).json({ success: false, error: 'Campaign not found' });
+        return;
+    }
+
+    res.json({
+        success: true,
+        campaign,
+    });
+});
