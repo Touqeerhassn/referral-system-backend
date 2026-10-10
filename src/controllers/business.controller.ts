@@ -1,6 +1,7 @@
+import { getBotPhoneNumber, getWhatsAppStatus } from "../services/whatsapp.service";
 ﻿import { Request, Response } from "express";
 import { nanoid } from "nanoid";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, or } from "drizzle-orm";
 import { db } from "../db";
 import { businesses, campaigns, participants, whatsappVerifications } from "../db/schema";
 import { asyncHandler } from "../middleware/errorHandler";
@@ -25,6 +26,49 @@ function generateToken(businessId: string): string {
 const WA_NUMBER = (process.env.WHATSAPP_BUSINESS_NUMBER || "0000000000").replace(/\D/g, "");
 
 // ── Existing handlers ─────────────────────────────────────────────────────────
+
+
+/**
+ * POST /api/businesses/login
+ *
+ * Fast Dev Login: looks up registered business by phone number or email.
+ * Issues auth token and returns business info.
+ */
+export const loginBusiness = asyncHandler(async (req: Request, res: Response) => {
+    const { phone } = req.body;
+    const cleanDigits = phone.replace(/\D/g, "");
+    const trimmed = phone.trim().toLowerCase();
+
+    const [business] = await db
+        .select()
+        .from(businesses)
+        .where(
+            or(
+                eq(businesses.phone, cleanDigits),
+                eq(businesses.phone, `+${cleanDigits}`),
+                eq(businesses.email, trimmed)
+            )
+        )
+        .orderBy(desc(businesses.createdAt))
+        .limit(1);
+
+    if (!business) {
+        res.status(404).json({
+            success: false,
+            error: "No business found with this phone number or email. Please register first.",
+        });
+        return;
+    }
+
+    const token = generateToken(business.id);
+
+    res.json({
+        success: true,
+        message: `Welcome back, ${business.name}!`,
+        token,
+        business,
+    });
+});
 
 export const registerBusiness = asyncHandler(async (req: Request, res: Response) => {
     const { name, subsStatus } = req.body;
@@ -91,7 +135,8 @@ export const initiateWhatsAppVerify = asyncHandler(async (req: Request, res: Res
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
     const codeText = `VERIFY_${nonce}`;
-    const waLink = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(codeText)}`;
+    const botNum = getBotPhoneNumber() || WA_NUMBER;
+    const waLink = `https://wa.me/${botNum}?text=${encodeURIComponent(codeText)}`;
 
     await db.insert(whatsappVerifications).values({
         id: `wv_${nanoid(10)}`,
@@ -248,3 +293,7 @@ async function processIncomingMessage(body: any): Promise<void> {
 
     console.log(`[WA-Webhook] Business created: ${newBusiness.id} | phone=${senderPhone}`);
 }
+
+export const getWhatsAppBotStatus = asyncHandler(async (_req: Request, res: Response) => {
+    res.json({ success: true, ...getWhatsAppStatus() });
+});

@@ -1,6 +1,7 @@
 ﻿import { Router } from "express";
 import {
     registerBusiness,
+    loginBusiness,
     getBusinessCampaigns,
     getBusinessParticipants,
     initiateWhatsAppVerify,
@@ -10,6 +11,7 @@ import {
 import { validate } from "../middleware/validate";
 import {
     registerBusinessSchema,
+    loginBusinessSchema,
     businessParamsSchema,
     initiateVerifySchema,
     verifyStatusQuerySchema,
@@ -21,6 +23,9 @@ const router = Router();
 
 // POST /api/businesses/register  (legacy direct-register)
 router.post("/register", validate(registerBusinessSchema), registerBusiness);
+
+// POST /api/businesses/login (Dev Phase Quick Phone Login)
+router.post("/login", validate(loginBusinessSchema), loginBusiness);
 
 // GET  /api/businesses/:businessId/campaigns
 router.get("/:businessId/campaigns", validate(businessParamsSchema, "params"), getBusinessCampaigns);

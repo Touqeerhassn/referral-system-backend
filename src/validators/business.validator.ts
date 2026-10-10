@@ -1,6 +1,6 @@
 ﻿import Joi from "joi";
 
-// ── Existing validators ────────────────────────────────────────────────────────
+// ── Existing validators ──
 
 export const registerBusinessSchema = Joi.object({
     name: Joi.string().trim().min(2).max(100).required().messages({
@@ -21,7 +21,7 @@ export const businessParamsSchema = Joi.object({
     }),
 });
 
-// ── WhatsApp Verification validators ──────────────────────────────────────────
+// ── WhatsApp Verification validators ──
 
 /**
  * POST /api/businesses/verify/initiate
@@ -56,5 +56,15 @@ export const verifyStatusQuerySchema = Joi.object({
     nonce: Joi.string().trim().required().messages({
         "string.empty": "nonce is required",
         "any.required": "nonce query parameter is required",
+    }),
+});
+
+/**
+ * POST /api/businesses/login
+ */
+export const loginBusinessSchema = Joi.object({
+    phone: Joi.string().trim().required().messages({
+        "string.empty": "Phone number or email is required",
+        "any.required": "Phone number or email is required",
     }),
 });

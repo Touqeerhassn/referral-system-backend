@@ -1,12 +1,12 @@
-import Joi from 'joi';
+﻿import Joi from 'joi';
 import { Request, Response, NextFunction } from 'express';
 
 type ValidationTarget = 'body' | 'params' | 'query';
 
 /**
  * Returns an Express middleware that validates req[target] against the given Joi schema.
- * On failure → 400 with structured validation errors.
- * On success → strips unknown fields and replaces req[target] with the cleaned value.
+ * On failure -> 400 with structured validation errors.
+ * On success -> strips unknown fields and replaces req[target] with the cleaned value.
  */
 export const validate =
     (schema: Joi.ObjectSchema, target: ValidationTarget = 'body') =>
@@ -31,6 +31,16 @@ export const validate =
         }
 
         // Replace with sanitised value (unknown fields stripped)
-        (req as any)[target] = value;
+        // Note: Express 5 defines req.query as a getter, so we redefine property if target === 'query'
+        if (target === 'query') {
+            Object.defineProperty(req, 'query', {
+                value,
+                writable: true,
+                configurable: true,
+                enumerable: true,
+            });
+        } else {
+            (req as any)[target] = value;
+        }
         next();
     };

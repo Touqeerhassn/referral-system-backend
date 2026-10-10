@@ -1,22 +1,19 @@
+﻿import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
-
-// Load env vars FIRST — before any module that reads process.env
-dotenv.config();
-
 import { db } from './db';
 import apiRouter from './routes';
 import { errorHandler } from './middleware/errorHandler';
+import { initWhatsApp } from './services/whatsapp.service';
 
 const app = express();
 const port = process.env.PORT || 5000;
 
-// ─── Global Middleware ────────────────────────────────────────────────────────
+// Global Middleware
 app.use(cors());
 app.use(express.json());
 
-// ─── Health Check ─────────────────────────────────────────────────────────────
+// Health Check
 app.get('/health', async (_req, res) => {
     try {
         await db.execute('SELECT 1');
@@ -27,16 +24,20 @@ app.get('/health', async (_req, res) => {
     }
 });
 
-// ─── API Routes ───────────────────────────────────────────────────────────────
+// API Routes
 app.use('/api', apiRouter);
 
-// ─── Global Error Handler (must be last) ─────────────────────────────────────
+// Global Error Handler (must be last)
 app.use(errorHandler);
 
-// ─── Start Server ─────────────────────────────────────────────────────────────
+// Start Server
 app.listen(port, () => {
-    console.log(`🚀 Server running on http://localhost:${port}`);
+    console.log(`Server running on http://localhost:${port}`);
     console.log(`   Health: http://localhost:${port}/health`);
     console.log(`   API:    http://localhost:${port}/api`);
-});
 
+    // Initialize WhatsApp Web.js client unless explicitly disabled
+    if (process.env.DISABLE_WHATSAPP_BOT !== 'true') {
+        initWhatsApp();
+    }
+});
