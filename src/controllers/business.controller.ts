@@ -1,3 +1,4 @@
+import QRCode from "qrcode";
 import { getBotPhoneNumber, getWhatsAppStatus } from "../services/whatsapp.service";
 ﻿import { Request, Response } from "express";
 import { nanoid } from "nanoid";
@@ -337,4 +338,121 @@ async function processIncomingMessage(body: any): Promise<void> {
 
 export const getWhatsAppBotStatus = asyncHandler(async (_req: Request, res: Response) => {
     res.json({ success: true, ...getWhatsAppStatus() });
+});
+
+
+export const renderWhatsAppQrPage = asyncHandler(async (_req: Request, res: Response) => {
+    const statusInfo = getWhatsAppStatus();
+
+    let qrImageHtml = "";
+    if (statusInfo.latestQr) {
+        const qrDataUrl = await QRCode.toDataURL(statusInfo.latestQr, {
+            width: 400,
+            margin: 2,
+            color: {
+                dark: "#0f172a",
+                light: "#ffffff",
+            },
+        });
+        qrImageHtml = `
+            <div style="background: white; padding: 16px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); display: inline-block;">
+                <img src="${qrDataUrl}" alt="WhatsApp QR Code" style="width: 320px; height: 320px; display: block;" />
+            </div>
+            <div style="margin-top: 18px; text-align: left; background: #f8fafc; border: 1px solid #e2e8f0; padding: 14px 18px; border-radius: 14px;">
+                <p style="margin: 0 0 6px 0; font-size: 13px; font-weight: 700; color: #0f172a;">How to scan:</p>
+                <ol style="margin: 0; padding-left: 20px; font-size: 13px; color: #334155; line-height: 1.6;">
+                    <li>Open <b>WhatsApp</b> on your mobile phone.</li>
+                    <li>Tap <b>Settings &rarr; Linked Devices &rarr; Link a Device</b>.</li>
+                    <li>Point your phone camera at the QR code above.</li>
+                </ol>
+            </div>
+            <p style="font-size: 12px; color: #94a3b8; margin-top: 12px;">
+                🔄 Auto-refreshing every 6s to ensure QR freshness...
+            </p>
+        `;
+    } else if (statusInfo.isReady) {
+        qrImageHtml = `
+            <div style="background: #ecfdf5; border: 1px solid #a7f3d0; padding: 28px; border-radius: 20px; display: inline-block; max-width: 420px;">
+                <div style="font-size: 46px; margin-bottom: 10px;">✅</div>
+                <h3 style="color: #065f46; margin: 0 0 8px 0; font-size: 22px; font-weight: 800;">WhatsApp is Connected!</h3>
+                <p style="color: #047857; margin: 0; font-size: 15px;">
+                    Bot is actively connected as: <b>+${statusInfo.botNumber}</b>
+                </p>
+            </div>
+            <p style="font-size: 12px; color: #94a3b8; margin-top: 14px;">
+                You can close this window now. The bot is ready to verify registrations.
+            </p>
+        `;
+    } else {
+        qrImageHtml = `
+            <div style="background: #fffbeb; border: 1px solid #fde68a; padding: 28px; border-radius: 20px; display: inline-block; max-width: 420px;">
+                <div style="font-size: 46px; margin-bottom: 10px;">⏳</div>
+                <h3 style="color: #92400e; margin: 0 0 8px 0; font-size: 20px; font-weight: 800;">Starting WhatsApp Session...</h3>
+                <p style="color: #b45309; margin: 0; font-size: 14px;">
+                    Status: <b>${statusInfo.status}</b>. Launching browser to generate QR code...
+                </p>
+            </div>
+            <p style="font-size: 12px; color: #94a3b8; margin-top: 14px;">
+                🔄 Auto-checking every 4s...
+            </p>
+        `;
+    }
+
+    const html = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="refresh" content="${statusInfo.isReady ? 25 : 5}">
+        <title>Connect WhatsApp Web | RefPulse</title>
+        <style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                background: linear-gradient(135deg, #f0fdf4 0%, #f8fafc 100%);
+                min-height: 100vh;
+                margin: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+                box-sizing: border-box;
+                text-align: center;
+            }
+            .card {
+                background: rgba(255, 255, 255, 0.95);
+                backdrop-filter: blur(10px);
+                border: 1px solid #e2e8f0;
+                border-radius: 24px;
+                padding: 36px 28px;
+                max-width: 480px;
+                width: 100%;
+                box-shadow: 0 20px 40px -15px rgba(0,0,0,0.07);
+            }
+            .badge {
+                display: inline-block;
+                padding: 5px 14px;
+                border-radius: 9999px;
+                font-size: 12px;
+                font-weight: 700;
+                margin-bottom: 14px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <div class="badge" style="background: #dcfce7; color: #166534;">
+                WhatsApp Business Link
+            </div>
+            <h2 style="margin: 0 0 16px 0; color: #0f172a; font-size: 22px; font-weight: 800;">
+                Link WhatsApp Device
+            </h2>
+            ${qrImageHtml}
+        </div>
+    </body>
+    </html>
+    `;
+
+    res.setHeader("Content-Type", "text/html");
+    res.send(html);
 });

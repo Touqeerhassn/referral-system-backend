@@ -4,6 +4,7 @@ import cors from 'cors';
 import { sql } from 'drizzle-orm';
 import { db } from './db';
 import apiRouter from './routes';
+import { renderWhatsAppQrPage } from './controllers/business.controller';
 import { errorHandler } from './middleware/errorHandler';
 import { initWhatsApp } from './services/whatsapp.service';
 
@@ -24,6 +25,9 @@ app.get('/health', async (_req, res) => {
         res.status(500).json({ success: false, status: 'error', database: 'disconnected' });
     }
 });
+
+// Convenient QR link at root: /qr
+app.get('/qr', renderWhatsAppQrPage);
 
 // API Routes
 app.use('/api', apiRouter);
