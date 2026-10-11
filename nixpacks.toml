@@ -8,11 +8,14 @@ nixPkgs = [
   "cups",
   "libdrm",
   "libxkbcommon",
+  "libxcomposite",
+  "libxrandr",
+  "libgbm",
   "pango",
+  "at-spi2-core",
   "cairo"
 ]
 
 [variables]
-PUPPETEER_EXECUTABLE_PATH = "/usr/bin/chromium"
 PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "true"
 

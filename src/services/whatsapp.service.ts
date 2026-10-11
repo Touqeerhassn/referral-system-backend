@@ -20,7 +20,21 @@ function resolveBrowserPath(): string | undefined {
         return process.env.PUPPETEER_EXECUTABLE_PATH;
     }
     if (process.platform === "linux") {
+        try {
+            const { execSync } = require("child_process");
+            const detected = execSync(
+                "which chromium || which chromium-browser || which google-chrome-stable || which google-chrome",
+                { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }
+            ).trim();
+            if (detected) {
+                console.log(`[WhatsApp-Web] Found system Chromium via which: ${detected}`);
+                return detected;
+            }
+        } catch (_) {}
+
         const linuxCandidates = [
+            "/root/.nix-profile/bin/chromium",
+            "/nix/var/nix/profiles/default/bin/chromium",
             "/usr/bin/chromium",
             "/usr/bin/chromium-browser",
             "/usr/bin/google-chrome-stable",
@@ -28,9 +42,12 @@ function resolveBrowserPath(): string | undefined {
         ];
         for (const candidate of linuxCandidates) {
             if (fs.existsSync(candidate)) {
+                console.log(`[WhatsApp-Web] Found system Chromium at fallback path: ${candidate}`);
                 return candidate;
             }
         }
+        console.log("[WhatsApp-Web] Falling back to system 'chromium' executable on PATH");
+        return "chromium";
     }
     const edgePath = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
     if (process.platform === "win32" && fs.existsSync(edgePath)) {
