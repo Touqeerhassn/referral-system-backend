@@ -1,4 +1,4 @@
-﻿// @ts-ignore
+// @ts-ignore
 import pkg from "whatsapp-web.js";
 const { Client, LocalAuth } = pkg;
 import qrcode from "qrcode-terminal";
@@ -121,6 +121,17 @@ export function initWhatsApp(): any {
     });
 
     clientInstance = client;
+
+    const cleanup = async () => {
+        if (clientInstance) {
+            try {
+                await clientInstance.destroy();
+            } catch (_) {}
+        }
+    };
+    process.once("SIGINT", cleanup);
+    process.once("SIGTERM", cleanup);
+
     client.initialize().catch((err: any) => {
         currentStatus = "ERROR";
         console.error("[WhatsApp-Web] Failed to initialize client:", err);
@@ -134,10 +145,33 @@ async function handleIncomingWhatsAppMessage(msg: any): Promise<void> {
     const text = rawText.toUpperCase();
     const senderRaw = msg.from || "";
 
-    // Clean sender phone: "923001234567@c.us" -> "923001234567"
-    const senderPhone = senderRaw.replace(/@c\.us$/, "").replace(/\D/g, "");
+    // If sent from standard WhatsApp user: "923001234567@c.us" -> "923001234567"
+    // If sent from linked multi-device: "49795985076356@lid" -> WhatsApp LID (not a phone number)
+    let resolvedPhone: string | null = null;
+    if (senderRaw.endsWith("@c.us")) {
+        resolvedPhone = senderRaw.replace(/@c\.us$/, "").replace(/\D/g, "");
+    } else if (senderRaw.endsWith("@lid")) {
+        try {
+            const contact = await msg.getContact();
+            if (contact?.number && !contact.id?._serialized?.endsWith("@lid")) {
+                resolvedPhone = contact.number.replace(/\D/g, "");
+            }
+        } catch (err) {
+            console.warn("[WhatsApp-Web] getContact error:", err);
+        }
+        if (!resolvedPhone && clientInstance) {
+            try {
+                const [info] = await clientInstance.getContactLidAndPhone([senderRaw]);
+                if (info?.pn) {
+                    resolvedPhone = info.pn.replace(/@c\.us$/, "").replace(/\D/g, "");
+                }
+            } catch (err) {
+                console.warn("[WhatsApp-Web] getContactLidAndPhone error:", err);
+            }
+        }
+    }
 
-    console.log(`[WhatsApp-Web] Incoming from: ${senderPhone} | Message: "${rawText}"`);
+    console.log(`[WhatsApp-Web] Incoming from: ${senderRaw} (resolvedPhone: ${resolvedPhone || "none"}) | Message: "${rawText}"`);
 
     const match = text.match(/VERIFY_(REF-\d{6})/);
     if (!match) return;
@@ -173,12 +207,17 @@ async function handleIncomingWhatsAppMessage(msg: any): Promise<void> {
     const businessId = `biz_${nanoid(10)}`;
     const token = generateToken(businessId);
 
+    // Business phone: ALWAYS use the number the user registered with (claimedPhone)
+    // Avoid saving internal WhatsApp LIDs like 49795985076356 as the login phone number
+    const businessPhone = session.claimedPhone || resolvedPhone || senderRaw.replace(/\D/g, "");
+    const verifiedPhoneToSave = resolvedPhone || session.claimedPhone;
+
     const [newBusiness] = await db
         .insert(businesses)
         .values({
             id: businessId,
             name: session.businessName,
-            phone: senderPhone,
+            phone: businessPhone,
             email: session.businessEmail ?? null,
             subsStatus: session.subsStatus,
             phoneVerified: true,
@@ -189,18 +228,18 @@ async function handleIncomingWhatsAppMessage(msg: any): Promise<void> {
         .update(whatsappVerifications)
         .set({
             status: "VERIFIED",
-            verifiedPhone: senderPhone,
+            verifiedPhone: verifiedPhoneToSave,
             businessId,
             token,
         })
         .where(eq(whatsappVerifications.nonce, nonce));
 
-    console.log(`[WhatsApp-Web] SUCCESS: Verified ${nonce} for business ${newBusiness.id} (Phone: ${senderPhone})`);
+    console.log(`[WhatsApp-Web] SUCCESS: Verified ${nonce} for business ${newBusiness.id} (Business Phone: ${businessPhone})`);
 
     // Reply back on WhatsApp to confirm!
     await msg.reply(
         `✅ *Verification Successful!*\n\n` +
-        `Your RefPulse business account (*${session.businessName}*) has been verified with phone +${senderPhone}.\n\n` +
+        `Your RefPulse business account (*${session.businessName}*) has been verified with phone ${businessPhone}.\n\n` +
         `You can return to your browser to access your dashboard!`
     );
 }

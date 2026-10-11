@@ -1,6 +1,0 @@
-2026/10/09-14:57:02.581 dc8 Reusing MANIFEST E:\Referral-System-Backend\.wwebjs_auth\session\Default\EdgeCoupons/coupons_data.db/MANIFEST-000001
-2026/10/09-14:57:02.582 dc8 Recovering log #4
-2026/10/09-14:57:02.582 dc8 Reusing old log E:\Referral-System-Backend\.wwebjs_auth\session\Default\EdgeCoupons/coupons_data.db/000004.log 
-2026/10/09-14:57:02.666 2678 Level-0 table #8: started
-2026/10/09-14:57:02.670 2678 Level-0 table #8: 683376 bytes OK
-2026/10/09-14:57:02.673 2678 Delete type=0 #4

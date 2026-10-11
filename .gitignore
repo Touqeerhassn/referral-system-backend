@@ -26,3 +26,7 @@ Thumbs.db
 
 # -- TypeScript cache ----------------------------------------------------------
 *.tsbuildinfo
+
+# -- WhatsApp Web.js (Never commit session tokens or cache!) -------------------
+.wwebjs_auth/
+.wwebjs_cache/

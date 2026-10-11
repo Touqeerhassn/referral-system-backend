@@ -1,6 +1,7 @@
-﻿import 'dotenv/config';
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import { sql } from 'drizzle-orm';
 import { db } from './db';
 import apiRouter from './routes';
 import { errorHandler } from './middleware/errorHandler';
@@ -16,7 +17,7 @@ app.use(express.json());
 // Health Check
 app.get('/health', async (_req, res) => {
     try {
-        await db.execute('SELECT 1');
+        await db.execute(sql`SELECT 1`);
         res.json({ success: true, status: 'ok', database: 'connected' });
     } catch (err) {
         console.error('DB health check failed:', err);

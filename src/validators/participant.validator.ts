@@ -15,11 +15,11 @@ export const joinCampaignSchema = Joi.object({
 
     phone: Joi.string()
         .trim()
-        .pattern(/^\+?[1-9]\d{6,14}$/)
+        .pattern(/^\+?\d{7,15}$/)
         .required()
         .messages({
-            'string.empty': 'Phone cannot be empty',
-            'string.pattern.base': 'Phone must be a valid international number (e.g. +923001234567)',
+            'string.empty': 'Phone number is required',
+            'string.pattern.base': 'Enter a valid phone number with country code (e.g. +923001234567)',
             'any.required': 'Phone is required',
         }),
 

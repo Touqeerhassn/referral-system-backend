@@ -16,7 +16,7 @@ export const errorHandler = (
     let statusCode = err.statusCode || 500;
     let message = err.message || 'Internal Server Error';
 
-    console.error(`[Error] ${statusCode} — ${message}`, err.stack);
+    console.error(`[Error] ${statusCode} — ${message}`, (err as any)?.cause || '', err.stack);
 
     // ── 1. Catch PostgreSQL unique constraint violations (code 23505) ────────
     const fullErrStr = `${err.message || ''} ${(err as any)?.cause?.message || ''}`;
@@ -36,6 +36,9 @@ export const errorHandler = (
         } else {
             message = 'A record with this unique value already exists.';
         }
+    } else if (fullErrStr.includes('fetch failed') || fullErrStr.includes('Error connecting to database')) {
+        statusCode = 503;
+        message = 'Database connection temporarily unavailable. Please check your internet connection or try again in a moment.';
     } else if (message.startsWith('Failed query:')) {
         // ── 2. Never leak raw SQL query strings to the client/frontend ───────
         message = 'A database error occurred while processing your request. Please check your inputs and try again.';

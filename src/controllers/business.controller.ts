@@ -1,7 +1,7 @@
 import { getBotPhoneNumber, getWhatsAppStatus } from "../services/whatsapp.service";
 ﻿import { Request, Response } from "express";
 import { nanoid } from "nanoid";
-import { eq, desc, or } from "drizzle-orm";
+import { eq, desc, or, like } from "drizzle-orm";
 import { db } from "../db";
 import { businesses, campaigns, participants, whatsappVerifications } from "../db/schema";
 import { asyncHandler } from "../middleware/errorHandler";
@@ -34,21 +34,62 @@ const WA_NUMBER = (process.env.WHATSAPP_BUSINESS_NUMBER || "0000000000").replace
  * Fast Dev Login: looks up registered business by phone number or email.
  * Issues auth token and returns business info.
  */
+/**
+ * POST /api/businesses/login
+ *
+ * Fast Dev Login: looks up registered business by phone number or email.
+ * Supports Pakistani local (03xx), international (+92 / 92), or email formats.
+ * Issues auth token and returns business info.
+ */
 export const loginBusiness = asyncHandler(async (req: Request, res: Response) => {
-    const { phone } = req.body;
-    const cleanDigits = phone.replace(/\D/g, "");
-    const trimmed = phone.trim().toLowerCase();
+    const rawInput = (req.body.phone || req.body.email || "").toString().trim();
+    if (!rawInput) {
+        res.status(400).json({
+            success: false,
+            error: "Please provide your phone number or email to log in.",
+        });
+        return;
+    }
+
+    const cleanDigits = rawInput.replace(/\D/g, "");
+    const trimmedEmail = rawInput.toLowerCase();
+
+    const searchVariants = new Set<string>();
+    if (cleanDigits) {
+        searchVariants.add(cleanDigits);
+        searchVariants.add(`+${cleanDigits}`);
+
+        if (cleanDigits.startsWith("0")) {
+            const withoutZero = cleanDigits.replace(/^0+/, "");
+            searchVariants.add(withoutZero);
+            searchVariants.add(`92${withoutZero}`);
+            searchVariants.add(`+92${withoutZero}`);
+        } else if (cleanDigits.startsWith("92")) {
+            const withoutCode = cleanDigits.slice(2);
+            searchVariants.add(withoutCode);
+            searchVariants.add(`0${withoutCode}`);
+        }
+
+        if (cleanDigits.length >= 9) {
+            searchVariants.add(cleanDigits.slice(-9));
+            searchVariants.add(cleanDigits.slice(-10));
+        }
+    }
+
+    const conditions = Array.from(searchVariants).map((v) => eq(businesses.phone, v));
+
+    if (trimmedEmail.includes("@")) {
+        conditions.push(eq(businesses.email, trimmedEmail));
+    }
+
+    if (cleanDigits.length >= 9) {
+        conditions.push(like(businesses.phone, `%${cleanDigits.slice(-9)}`));
+    }
 
     const [business] = await db
         .select()
         .from(businesses)
-        .where(
-            or(
-                eq(businesses.phone, cleanDigits),
-                eq(businesses.phone, `+${cleanDigits}`),
-                eq(businesses.email, trimmed)
-            )
-        )
+        .where(or(...conditions))
         .orderBy(desc(businesses.createdAt))
         .limit(1);
 
@@ -279,7 +320,7 @@ async function processIncomingMessage(body: any): Promise<void> {
         .values({
             id: businessId,
             name: session.businessName,
-            phone: senderPhone,                    // REAL phone from WhatsApp
+            phone: session.claimedPhone || senderPhone,
             email: session.businessEmail ?? null,
             subsStatus: session.subsStatus,
             phoneVerified: true,
@@ -288,7 +329,7 @@ async function processIncomingMessage(body: any): Promise<void> {
 
     await db
         .update(whatsappVerifications)
-        .set({ status: "VERIFIED", verifiedPhone: senderPhone, businessId, token })
+        .set({ status: "VERIFIED", verifiedPhone: senderPhone || session.claimedPhone, businessId, token })
         .where(eq(whatsappVerifications.nonce, nonce));
 
     console.log(`[WA-Webhook] Business created: ${newBusiness.id} | phone=${senderPhone}`);

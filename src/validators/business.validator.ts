@@ -1,4 +1,4 @@
-﻿import Joi from "joi";
+import Joi from "joi";
 
 // ── Existing validators ──
 
@@ -63,8 +63,10 @@ export const verifyStatusQuerySchema = Joi.object({
  * POST /api/businesses/login
  */
 export const loginBusinessSchema = Joi.object({
-    phone: Joi.string().trim().required().messages({
-        "string.empty": "Phone number or email is required",
-        "any.required": "Phone number or email is required",
-    }),
+    phone: Joi.string().trim().optional(),
+    email: Joi.string().trim().optional(),
+}).or("phone", "email").messages({
+    "object.missing": "Phone number or email is required",
+    "string.empty": "Phone number or email cannot be empty",
 });
+
