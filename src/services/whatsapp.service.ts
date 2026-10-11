@@ -19,6 +19,19 @@ function resolveBrowserPath(): string | undefined {
     if (process.env.PUPPETEER_EXECUTABLE_PATH) {
         return process.env.PUPPETEER_EXECUTABLE_PATH;
     }
+    if (process.platform === "linux") {
+        const linuxCandidates = [
+            "/usr/bin/chromium",
+            "/usr/bin/chromium-browser",
+            "/usr/bin/google-chrome-stable",
+            "/usr/bin/google-chrome",
+        ];
+        for (const candidate of linuxCandidates) {
+            if (fs.existsSync(candidate)) {
+                return candidate;
+            }
+        }
+    }
     const edgePath = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
     if (process.platform === "win32" && fs.existsSync(edgePath)) {
         return edgePath;
