@@ -142,13 +142,31 @@ export function initWhatsApp(): any {
         console.warn("[WhatsApp-Web] Disconnected:", reason);
     });
 
-    client.on("message", async (msg: any) => {
+    const processedMessages = new Set<string>();
+
+    const handleMsg = async (msg: any) => {
         try {
-            await handleIncomingWhatsAppMessage(msg);
+            const body = (msg.body || "").trim();
+            // Only process if it matches verification pattern
+            if (/VERIFY_?(REF-\d{6})/i.test(body)) {
+                const msgId = msg.id?._serialized || msg.id?.id;
+                if (msgId) {
+                    if (processedMessages.has(msgId)) return;
+                    processedMessages.add(msgId);
+                    if (processedMessages.size > 500) {
+                        const first = processedMessages.values().next().value;
+                        if (first) processedMessages.delete(first);
+                    }
+                }
+                await handleIncomingWhatsAppMessage(msg);
+            }
         } catch (err) {
             console.error("[WhatsApp-Web] Error in message handler:", err);
         }
-    });
+    };
+
+    client.on("message", handleMsg);
+    client.on("message_create", handleMsg);
 
     clientInstance = client;
 
@@ -203,7 +221,7 @@ async function handleIncomingWhatsAppMessage(msg: any): Promise<void> {
 
     console.log(`[WhatsApp-Web] Incoming from: ${senderRaw} (resolvedPhone: ${resolvedPhone || "none"}) | Message: "${rawText}"`);
 
-    const match = text.match(/VERIFY_(REF-\d{6})/);
+    const match = text.match(/VERIFY_?(REF-\d{6})/i);
     if (!match) return;
 
     const nonce = match[1];
